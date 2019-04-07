@@ -1,0 +1,77 @@
+#Server端
+
+# -*- encoding: utf-8 -*-
+import socket
+import os
+import struct
+import json
+
+buffer_size=1024
+
+
+sk=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sk.bind(('127.0.0.1',8001))
+sk.listen(5)
+
+conn,caddr=sk.accept()
+print("Get connection from ",caddr)
+#获得报文头部的长度，因为报文头部是整数，用四个字节
+head_len=conn.recv(4)
+head_len=struct.unpack("i",head_len)[0]
+
+file_meta=conn.recv(head_len).decode("utf-8")
+file_meta=json.loads(file_meta)
+file_name=os.path.basename(file_meta['file_path'])
+file_size=file_meta['file_size']
+
+recvlen=0
+with open(  os.path.join( '.\\',  file_name) ,'wb' ) as f:
+#这里蕴含的思想是，只要接收的数据长度不是file_size,就会继续接收，直到接收完整
+    while recvlen< file_size :
+        content=conn.recv(buffer_size)
+        if content:
+            f.write(content)
+            #判断接收到的数据长度，因为可能不一定是4096的长度
+            recvlen+=len(content)
+            print("received:" ,recvlen/file_size*100, "%",end="\r",flush=True)
+
+conn.close()
+sk.close()
+
+####################################################################################################################
+#client端
+
+# -*- encoding: utf-8 -*-
+import socket
+import os
+import struct
+import json
+
+buffer=4096
+
+file_name=r'D:\BaiduYunDownload\IPv6\IPv6-DayEight上.mp4'
+file_size=os.path.getsize(file_name)
+file_meta={'file_path':file_name,'file_size':file_size}
+file_meta=json.dumps(file_meta)
+file_meta=file_meta.encode("utf-8")
+head_len=len(file_meta)
+head_len=struct.pack("i",head_len)
+print(head_len)
+
+
+csk=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+csk.connect(('127.0.0.1',8001))
+
+csk.send(head_len+file_meta)
+
+with open(file_name, 'rb') as f:
+    while file_size >0:
+        content=f.read(buffer)
+        csk.send(content)
+        #因为content读取的内容不一定就是4096，所以判断一下长度
+        file_size-=len(content)
+
+
+csk.close()
+
+
