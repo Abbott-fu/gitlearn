@@ -1,0 +1,114 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include<stdio.h>
+#include<string.h>
+#include<errno.h>
+#include<stdlib.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#define S_PORT 8008
+#define S_IP "192.168.3.6"
+
+void print_err(char *str,int line , int err_no)
+{
+	printf("%d  %s:%s\n",line,str,strerror(err_no));
+	exit(-1);
+}
+
+int main()
+{
+	int skfd;	
+	int connsk;
+        char msgbuf[1024]={0};
+	ssize_t msglen;
+	char str[]="Hi,Client";
+	ssize_t strlen;
+
+	char s[4]="bye";
+
+	struct sockaddr_in myaddr_port;
+	myaddr_port.sin_family=AF_INET;
+	//函数htons把一个主机字节序的短整数端口号(可能是低字节在后)转换成网络字节序(高字节在后)
+	myaddr_port.sin_port=htons(S_PORT);//服务器port,htons
+//	函数inet_addr将一个点分十进制表示的IP地址的ASCII字符串转换成网络字节序的32bit二进制整数。
+	myaddr_port.sin_addr.s_addr=inet_addr(S_IP);//服务器IP地址
+	//CLient的IP和端口
+	struct sockaddr_in clientaddr={0};
+        int clientsize=sizeof(clientaddr);
+//创建套接字
+	skfd=socket(AF_INET, SOCK_STREAM ,0);
+	if (skfd == -1)
+	{
+		print_err("socket error",__LINE__,errno);
+	}
+//绑定地址和端口
+	bind(skfd,(struct sockaddr *)&myaddr_port,sizeof(myaddr_port));
+//listen函数将套接字从主动转化为被动监听
+//这是服务器端和客户端的重要区别,只有服务器调用listen
+	listen(skfd,5);
+//等待接受链接请求,使用accept函数,clientaddr用于存放客户端的IP和端口
+//accept函数的返回值是连接套接字，也就是五元组
+//
+    	while(1)
+	{
+		connsk=accept(skfd,(struct sockaddr *)&clientaddr,&clientsize);
+		//打印客户端的IP和端口
+		printf("Get connection from addr %s port %d\n", inet_ntoa(clientaddr.sin_addr),ntohs(clientaddr.sin_port));
+		while(1)
+		{
+		//调用recv/read send、write等收发数据
+//recv返回的是接收到的数据的长度
+			msglen = recv(connsk,msgbuf,sizeof(msgbuf),0 );
+			if ( msglen <= 0 )
+			{	
+				close(connsk);
+				break;
+			}
+			else if (strcmp( s,msgbuf)==0)
+			{
+				strlen=send(connsk,s,sizeof(s),0);
+				printf("Recv %ld bytes form Client:%s\n",msglen,msgbuf);
+				printf("Client is offline\n");
+			        close(connsk);
+				bzero(msgbuf, sizeof(msgbuf));
+				break;
+			}	
+        		else
+			{
+				printf("Recv %ld bytes form Client:%s\n",msglen,msgbuf);
+			
+				strlen=send(connsk,str,sizeof(str),0);
+				bzero(msgbuf, sizeof(msgbuf));
+			}
+			
+
+		}
+	}	
+
+	return 0;
+}
+
+//以上是C server端，客户端输入bye后退出，以下是python的客户端，只能收发字符串
+
+#-*- encoding: utf-8 -*-
+import socket
+
+sk=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+sk.connect(('139.217.12.179',8008))
+print("Client has been asigned the endpoint:",sk.getsockname())
+
+while True:
+    message=input("send:")
+    sk.sendall(bytes(message, encoding="ascii"))
+    if message=='bye':
+        reply=sk.recv(1024)
+        print("Answer:",reply.decode())
+        sk.close()
+        break
+    else:
+        reply = sk.recv(1024)
+        print("Answer:", reply.decode())
+
