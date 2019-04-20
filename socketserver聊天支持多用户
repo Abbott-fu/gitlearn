@@ -1,0 +1,58 @@
+#server端
+#使用socketserver模块，使用多线程的方式，支持多用户
+#-*- encoding: utf-8 -*-
+import socketserver
+
+class MyHandle(socketserver.BaseRequestHandler):
+    def handle(self):
+        print("Server is listening at",self.server)
+        print("Get a connection from ",self.client_address)
+        while True:
+            try:
+            #self.request就是代表原来socket.accept（）返回的连接套接字conn
+                self.request.settimeout(100)
+                message=self.request.recv(1024)
+                if len(message)==0:
+                    self.request.close()
+                    break
+                message=message.decode()
+                print(self.client_address,"says:",message)
+                if message=='bye':
+                    self.request.send(bytes("Bye client !",encoding="utf-8"))
+                    print(self.client_address ,"is dosconnected")
+                    self.request.close()
+                    break
+                else:
+                    self.request.send(bytes("Hello Client",encoding="utf-8"))
+            except TimeoutError as e:
+                print(e)
+                self.request.close()
+                break
+
+if __name__=='__main__':
+    myserver=socketserver.ThreadingTCPServer(('192.168.3.6',8008),MyHandle)
+    myserver.serve_forever()
+~                                                      
+
+########
+#client端
+
+#-*- encoding: utf-8 -*-
+import socket
+
+sk=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+sk.connect(('139.219.9.236',8008))
+print("Client has been asigned the endpoint:",sk.getsockname())
+
+while True:
+    message=input("send:")
+    sk.sendall(bytes(message, encoding="ascii"))
+    if message=='bye':
+        reply=sk.recv(1024)
+        print("Answer:",reply.decode())
+        sk.close()
+        break
+    else:
+        reply = sk.recv(1024)
+        print("Answer:", reply.decode())
