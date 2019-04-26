@@ -1,0 +1,75 @@
+##################################Server##############################
+#-*- encoding: utf-8 -*-
+import socket
+from multiprocessing import Process
+import os
+
+ipaddr='192.168.3.6'
+port=8008
+
+def myhandle(conn):
+    print("子进程ID:",os.getpid())
+    while True:
+        try:
+            message = conn.recv(1024)
+            if len(message) <= 0:
+                conn.close()
+                break
+            message = message.decode()
+            print("Client:", message)
+            if message == "bye":
+                conn.send(bytes("Bye,Client !",encoding='utf-8'))
+                print("Reply sent,socket closed")
+                conn.close()
+                break
+            else:
+                conn.sendall(bytes("Hello Client !",encoding='utf-8'))
+        except TimeoutError:
+            print("Timeout Error, 已经失去与Client的连接！")
+            break
+    conn.close()
+    return None
+
+if  __name__=='__main__':
+    sk=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    sk.bind((ipaddr,port))
+    sk.listen(5)
+    print("主进程ID:",os.getpid())
+    while True:
+        conn,peeraddr=sk.accept()
+        print("We hava get a connection from :",peeraddr)
+        #每进来一个连接，创建新的进程来handle连接，以便支持多个客户端
+        p=Process(target=myhandle,args=(conn,))
+        p.start()
+
+#客户端
+
+import socket
+
+ipa='42.159.115.51'
+
+class MySk:
+    def __init__(self):
+        self.sk = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sk.connect((ipa, 8008))
+        print("Client has been asigned the endpoint:", self.sk.getsockname())
+    def chat(self):
+        while True:
+            message = input("send:")
+            self.sk.sendall(bytes(message, encoding="utf-8"))
+            if message == 'bye':
+                reply = self.sk.recv(1024)
+                print("Answer:", reply.decode("utf-8"))
+                self.sk.close()
+                break
+            else:
+                reply = self.sk.recv(1024)
+                print("Answer:", reply.decode("utf-8"))
+        return None
+
+clientsk=MySk()
+clientsk.chat()
+
+#
+
+
