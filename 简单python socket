@@ -16,6 +16,8 @@ while True:
         try:
             message=conn.recv(1024)
             if len(message)<=0:
+            #如果客户端使用psping等端口探测工具进行测试的话，那么由于对方关闭了连接，协议栈recv会立即感知到，从阻塞状态返回，
+			#此时收到的数据长度为0
                 print("msg length 0")
                 conn.close()
                 break
