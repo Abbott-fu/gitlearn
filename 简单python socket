@@ -1,0 +1,35 @@
+#-*- encoding: utf-8 -*-
+import socket
+
+ipaddr='192.168.3.6'
+port=8008
+
+sk=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+sk.bind((ipaddr,port))
+sk.listen(5)
+
+while True:
+    conn,peeraddr=sk.accept()
+    print("We hava get a connection from :",peeraddr)
+    while True:
+        try:
+            message=conn.recv(1024)
+            if len(message)<=0:
+                print("msg length 0")
+                conn.close()
+                break
+            message=message.decode()
+            print("Client:",message)
+            if message=="bye":
+                conn.send(bytes("Bye,Client !".encode()))
+                print("Reply sent,socket closed")
+                conn.close()
+                break
+            else:
+                conn.sendall(bytes("Hello Client !".encode()))
+        except TimeoutError:
+            print("Timeout Error, 已经失去与Client的连接！")
+            break
+
+#客户端同C语言版本的客户端
